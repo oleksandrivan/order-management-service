@@ -1,3 +1,6 @@
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import java.io.ByteArrayOutputStream
+
 plugins {
     id("org.jetbrains.kotlin.jvm") version "1.9.23"
     id("org.jetbrains.kotlin.plugin.allopen") version "1.9.23"
@@ -11,6 +14,8 @@ version = "0.1"
 group = "com.uoc"
 
 val kotlinVersion=project.properties.get("kotlinVersion")
+val registry = project.properties.get("dockerRegistry") as String
+
 repositories {
     mavenCentral()
 }
@@ -66,6 +71,21 @@ tasks.named<io.micronaut.gradle.docker.MicronautDockerfile>("dockerfile") {
 
 tasks.named<io.micronaut.gradle.docker.NativeImageDockerfile>("dockerfileNative") {
     jdkVersion.set("21")
+    graalArch.set("amd64")
+    exposedPorts.set(listOf(8080))
 }
 
+tasks.named<DockerBuildImage>("dockerBuildNative") {
+    val commitId = execCmd("git rev-parse --short HEAD")
+    images.set(listOf("$registry/order-management-service:latest", "$registry/order-management-service:$commitId"))
+    platform.set("linux/amd64")
+}
 
+fun execCmd(command: String): String {
+    val stdOut = ByteArrayOutputStream()
+    project.exec {
+        commandLine = command.split(" ")
+        standardOutput = stdOut
+    }
+    return stdOut.toString().trim()
+}
