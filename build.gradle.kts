@@ -35,12 +35,12 @@ dependencies {
     implementation("org.jooq:jooq:3.19.7")
     implementation("mysql:mysql-connector-java:8.0.33")
     runtimeOnly("ch.qos.logback:logback-classic")
-    runtimeOnly("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     testImplementation("org.testcontainers:junit-jupiter:1.19.7")
     testImplementation("org.testcontainers:mysql:1.19.7")
     testImplementation("org.testcontainers:testcontainers:1.19.7")
     testImplementation("io.micronaut:micronaut-http-client")
-
+    testImplementation("io.mockk:mockk:1.13.10")
 }
 
 

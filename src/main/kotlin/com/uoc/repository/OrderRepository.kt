@@ -15,7 +15,7 @@ interface OrderRepository {
 
     fun findOrder(orderId: OrderId): Result<Order>
     fun storeOrder(order: Order): Result<OrderId>
-    fun updateOrder(order: Order): Result<OrderId>
+    fun updateOrder(orderId: OrderId, orderStatus: OrderStatus): Result<OrderId>
 }
 
 @Singleton
@@ -66,13 +66,14 @@ class OrderRepositoryImpl(
         }
     }
 
-    override fun updateOrder(order: Order): Result<OrderId> {
+    override fun updateOrder(orderId: OrderId, orderStatus: OrderStatus): Result<OrderId> {
         val orderResult = dslContext.update(ORDER)
-            .set(ORDER.STATUS, com.uoc.jooq.enums.OrderStatus.valueOf(order.status.name))
+            .set(ORDER.STATUS, com.uoc.jooq.enums.OrderStatus.valueOf(orderStatus.name))
             .set(ORDER.UPDATEDAT, LocalDateTime.now())
+            .where(ORDER.ID.eq(orderId.value))
             .execute()
         return when (orderResult) {
-            1 -> Result.success(order.orderId)
+            1 -> Result.success(orderId)
             else -> Result.failure(RuntimeException("Failed to store customer"))
         }
     }

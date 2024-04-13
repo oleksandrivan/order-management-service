@@ -34,3 +34,6 @@ CREATE TABLE `OrderItem` (
     PRIMARY KEY (`orderId`, `productId`),
     FOREIGN KEY (`orderId`) REFERENCES `Order`(id)
 );
+
+INSERT INTO `Customer` (id, `name`, `email`) VALUES (1, 'John Doe', 'jonh.doe@example.com');
+INSERT INTO `Address` (id, `street`, `city`, `state`, `postalCode`, `country`) VALUES (1, '123 Main St', 'Springfield', 'IL', '62701', 'USA');

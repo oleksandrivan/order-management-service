@@ -19,6 +19,9 @@ jobs:
           java-version: '21'
           distribution: 'corretto'
 
+      - name: Run Gradle test
+        run: ./gradlew test
+
       - name: Run Gradle dockerBuildNative
         run: ./gradlew dockerBuildNative
 
