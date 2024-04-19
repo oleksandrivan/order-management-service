@@ -73,11 +73,12 @@ micronaut {
 
 tasks.named<io.micronaut.gradle.docker.MicronautDockerfile>("dockerfile") {
     baseImage("eclipse-temurin:21-jre-jammy")
+    exposedPorts.set(listOf(8080))
 }
 
 tasks.named<DockerBuildImage>("dockerBuild") {
     val commitId = execCmd("git rev-parse --short HEAD")
-    images.set(listOf("order-management-service:latest", "order-management-service:$commitId"))
+    images.set(listOf("$registry/order-management-service:latest", "$registry/order-management-service:$commitId"))
 }
 
 tasks.named<io.micronaut.gradle.docker.NativeImageDockerfile>("dockerfileNative") {
