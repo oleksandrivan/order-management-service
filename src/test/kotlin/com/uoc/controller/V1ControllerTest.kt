@@ -14,7 +14,7 @@ class V1ControllerTest: AbstractIntegrationTest() {
     lateinit var client: HttpClient
 
     @Test
-    fun testCreateOrder() {
+    fun testCreateAndUpdateOrder() {
         val json = """
             {
                 "items": {

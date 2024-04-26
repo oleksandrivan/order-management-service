@@ -2,12 +2,15 @@ package com.uoc.repository
 
 import com.uoc.domain.*
 import com.uoc.jooq.tables.records.OrderRecord
+import com.uoc.jooq.tables.records.OrderitemRecord
 import com.uoc.jooq.tables.references.ORDER
 import com.uoc.jooq.tables.references.ORDERITEM
 import jakarta.inject.Singleton
 import org.jooq.DSLContext
 import org.jooq.SQLDialect
 import org.jooq.impl.DSL
+import reactor.core.publisher.Flux
+import reactor.core.publisher.Mono
 import java.time.LocalDateTime
 import javax.sql.DataSource
 
@@ -20,46 +23,46 @@ interface OrderRepository {
 
 @Singleton
 class OrderRepositoryImpl(
-    dataSource: DataSource
+    private val dslContext: DSLContext
 ) : OrderRepository {
 
-    private var dslContext: DSLContext = DSL.using(dataSource, SQLDialect.MYSQL)
-
     override fun findOrder(orderId: OrderId): Result<Order> {
-        val items: List<OrderItem> = dslContext.select()
+        val items: Flux<OrderItem> = Flux.from(dslContext.select()
             .from(ORDERITEM)
-            .where(ORDERITEM.ORDERID.eq(orderId.value))
-            .fetch()
-            .map { record -> OrderItem(record.get(ORDERITEM.PRODUCTID)!!, record.get(ORDERITEM.QUANTITY)!!)}
-        val record = dslContext.select()
+            .where(ORDERITEM.ORDERID.eq(orderId.value)))
+            .map { record -> OrderItem(record.get(ORDERITEM.PRODUCTID)!!, record.get(ORDERITEM.QUANTITY)!!) }
+
+        val order = Mono.from(dslContext.select()
             .from(ORDER)
-            .where(ORDER.ID.eq(orderId.value))
-            .fetchAny()!!
-            .into(OrderRecord::class.java)
-            .map { it as OrderRecord }
-        return Result.success(record.toDomain(items))
+            .where(ORDER.ID.eq(orderId.value)))
+            .map { record -> record.into(OrderRecord::class.java) }
+
+        return Result.success(order.toDomain(items))
     }
 
 
     override fun storeOrder(order: Order): Result<OrderId> {
-        val orderResult = dslContext.insertInto(ORDER)
+        val orderResult = Mono.from(dslContext.insertInto(ORDER)
             .set(ORDER.ID, order.orderId.value)
             .set(ORDER.CUSTOMERID, order.customerId.value)
             .set(ORDER.SHIPPINGADDRESS, order.shippingAddress.value)
             .set(ORDER.STATUS, com.uoc.jooq.enums.OrderStatus.valueOf(order.status.name))
             .set(ORDER.CREATEDAT, order.createdAt)
-            .set(ORDER.UPDATEDAT, order.updatedAt)
-            .execute()
+            .set(ORDER.UPDATEDAT, order.updatedAt))
 
-        val orderItemsResult = order.items.map { item ->
-            dslContext.insertInto(ORDERITEM)
-                .set(ORDERITEM.ORDERID, order.orderId.value)
-                .set(ORDERITEM.PRODUCTID, item.productId)
-                .set(ORDERITEM.QUANTITY, item.quantity)
-                .execute()
-        }.sum()
+        val itemsRecords = order.items.map { item ->
+            DSL.row(order.orderId.value, item.productId, item.quantity)
+        }
+        val orderItemsResult = Flux.from(
+            dslContext.insertInto(
+                ORDERITEM,
+                ORDERITEM.ORDERID,
+                ORDERITEM.PRODUCTID,
+                ORDERITEM.QUANTITY
+            ).valuesOfRows(itemsRecords)
+        )
 
-        return if(orderResult == 1 && orderItemsResult == order.items.size){
+        return if(orderResult.block()!! == 1 && orderItemsResult.collectList().block()!!.sum() == order.items.size){
             Result.success(order.orderId)
         } else{
             Result.failure(RuntimeException("Failed to store order"))
@@ -67,12 +70,11 @@ class OrderRepositoryImpl(
     }
 
     override fun updateOrder(orderId: OrderId, orderStatus: OrderStatus): Result<OrderId> {
-        val orderResult = dslContext.update(ORDER)
+        val orderResult = Mono.from(dslContext.update(ORDER)
             .set(ORDER.STATUS, com.uoc.jooq.enums.OrderStatus.valueOf(orderStatus.name))
             .set(ORDER.UPDATEDAT, LocalDateTime.now())
-            .where(ORDER.ID.eq(orderId.value))
-            .execute()
-        return when (orderResult) {
+            .where(ORDER.ID.eq(orderId.value)))
+        return when (orderResult.block()!!) {
             1 -> Result.success(orderId)
             else -> Result.failure(RuntimeException("Failed to store customer"))
         }
@@ -80,16 +82,20 @@ class OrderRepositoryImpl(
 
     companion object{
 
-        private fun OrderRecord.toDomain(items: List<OrderItem>): Order {
-            return Order(
-                orderId = OrderId(this.id!!),
-                customerId = CustomerId(this.customerid!!),
-                items = items,
-                shippingAddress = AddressId(this.shippingaddress!!),
-                status = OrderStatus.valueOf(this.status!!.name),
-                createdAt = this.createdat!!,
-                updatedAt = this.updatedat!!
-            )
+        private fun Mono<OrderRecord>.toDomain(itemsFlux: Flux<OrderItem>): Order {
+            val record = this.block()!!
+            val items = itemsFlux.collectList().block()!!
+            return with(record){
+                Order(
+                    orderId = OrderId(id!!),
+                    customerId = CustomerId(customerid!!),
+                    items = items,
+                    shippingAddress = AddressId(shippingaddress!!),
+                    status = OrderStatus.valueOf(status!!.name),
+                    createdAt = createdat!!,
+                    updatedAt = updatedat!!
+                )
+            }
         }
     }
 }
