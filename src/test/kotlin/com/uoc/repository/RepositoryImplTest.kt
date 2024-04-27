@@ -4,7 +4,6 @@ import com.uoc.AbstractIntegrationTest
 import com.uoc.domain.*
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 @MicronautTest
@@ -22,23 +21,22 @@ class RepositoryImplTest : AbstractIntegrationTest() {
     @Test
     fun when_storeOrder_then_storesOrderAndRelated() {
         val order = order()
-        val orderResult = orderRepository.storeOrder(order)
+        val orderResult = orderRepository.storeOrder(order).block()!!
 
-        assertTrue(orderResult.isSuccess)
-        val storedOrder = orderRepository.findOrder(order.orderId)
-        assert(storedOrder.isSuccess)
-        storedOrder.onSuccess {
-            assert(it.orderId == orderResult.getOrNull()!!)
-            assert(it.customerId == CustomerId(1))
-            assert(it.shippingAddress == AddressId(1))
-            assert(it.items.size == 2)
+        val storedOrder = orderRepository.findOrder(order.orderId).block()!!
+        with(storedOrder) {
+            assert(orderId == orderResult)
+            assert(customerId == CustomerId(1))
+            assert(shippingAddress == AddressId(1))
+            assert(items.size == 2)
         }
+
         val newStatus = OrderStatus.PREPARING
-        val updateResult = orderRepository.updateOrder(order.orderId, newStatus)
-        assertTrue(updateResult.isSuccess)
-        val updatedOrder = orderRepository.findOrder(order.orderId)
-        updatedOrder.onSuccess {
-            assert(it.status == newStatus)
+        val updateResult = orderRepository.updateOrder(order.orderId, newStatus).block()!!
+        val updatedOrder = orderRepository.findOrder(order.orderId).block()!!
+        with(updatedOrder) {
+            assert(orderId == updateResult)
+            assert(status == newStatus)
         }
     }
 
