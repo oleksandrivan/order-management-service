@@ -40,6 +40,7 @@ dependencies {
     testImplementation("org.testcontainers:mysql:1.19.7")
     testImplementation("org.testcontainers:testcontainers:1.19.7")
     testImplementation("io.micronaut:micronaut-http-client")
+    testImplementation("org.wiremock:wiremock-standalone:3.0.4")
 }
 
 

@@ -43,7 +43,7 @@ class V1Controller(
         )
         fun UpdateOrderRequest.toDomain() = OrderStatus.valueOf(status)
 
-        private fun <T, R> Mono<T>.fold(onSuccess: (T) -> R, onError: (Throwable) -> R): Mono<R> {
+        fun <T, R> Mono<T>.fold(onSuccess: (T) -> R, onError: (Throwable) -> R): Mono<R> {
             return this
                 .map(onSuccess)
                 .onErrorResume { error -> Mono.just(onError(error)!!) }
